@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" charset="UTF-8" />
+</head>
+
+<body onload="startGame()">
+    <script src="http://code.jquery.com/jquery-1.7.2.min.js"></script>
+    <script src="http://code.jquery.com/ui/1.8.21/jquery-ui.min.js"></script>
+    <script src="lib/jquery.ui.touch-punch.min.js"></script>
+    <script src="lib/jquery.finger/dist/jquery.finger.min.js"></script>
+    <script>
+        var img_board = new Image();
+        var CANVAS_SIZE = [480, 800];
+        var CANVAS_OFFSET = 16;
+        var board_canvas = document.createElement("canvas"); // the reference to the base canvas
+
+        var CANVAS_INST_SIZE = [480, 108];
+        var inst_canvas = document.createElement("canvas");
+
+        function startGame() {
+            // load the image
+            img_board.src = "pd_board_res/pd_board.png";
+            myGameArea.start();
+
+        }
+
+        var figures_blue = new Array(6);
+        var figures_red = new Array(6);
+
+        var myGameArea = {
+            canvas: board_canvas,
+            start: function() {
+                // canvas for the board and style
+                this.canvas.width = CANVAS_SIZE[0];
+                this.canvas.height = CANVAS_SIZE[1];
+                this.canvas.style.border = '1px solid #d3d3d3';
+                this.canvas.style.backgroundColor = '#f1f1f1';
+                this.canvas.style.left = '0px';
+                this.canvas.style.top = '0px';
+                this.canvas.style.position = 'absolute';
+                // for name text: they are drawn on the board canvas directly
+                this.context = this.canvas.getContext("2d");
+                this.context.font = '12px Arial';
+                this.context.textAlign = "center";
+                document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+                instructionCanvas.start();
+
+                this.interval = setInterval(updateGameArea, 20);
+                //this.context.drawImage(img_board, 0, 0);
+                // creating figures
+                for (var i = 0; i < 6; i++) {
+                    figures_blue[i] = new figure(SIDE_BLUE, i, FIGURE_PLACE_BLUE[i][0], FIGURE_PLACE_BLUE[i][1], STARTING_FIGURE_MP[i], STARTING_FIGURE_NAME_BLUE[i]);
+                    figures_red[i] = new figure(SIDE_RED, i, FIGURE_PLACE_RED[i][0], FIGURE_PLACE_RED[i][1], STARTING_FIGURE_MP[i], STARTING_FIGURE_NAME_RED[i]);
+                }
+            },
+            update: function() {
+                this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.context.drawImage(img_board, 0, 0);
+                instructionCanvas.update();
+            }
+        }
+
+        // NEW TYPE OF OBJECT: figure
+        var SIDE_BLUE = 0;
+        var SIDE_RED = 1;
+        var FIGURE_SIZE = [48, 48];
+
+        var FIGURE_PLACE_BLUE = [
+            [54, 680],
+            [154, 680],
+            [254, 680],
+            [102, 733],
+            [202, 733],
+            [302, 733]
+        ];
+        var FIGURE_PLACE_RED = [
+            [124, 16],
+            [224, 16],
+            [324, 16],
+            [173, 70],
+            [273, 70],
+            [373, 70]
+        ];
+
+        var STARTING_FIGURE_MP = ['3', '3', '2', '2', '2', '1'];
+        var STARTING_FIGURE_NAME_BLUE = ['Greninja', 'Mew', 'Deoxys-A', 'Zapdos', 'Reuniclus', 'Rayquaza'];
+        var STARTING_FIGURE_NAME_RED = ['Shuppet', 'Whimsicott', 'Ho-oh', 'Moltres', 'Lucario', 'Metagross'];
+
+        function figure(side, index, x, y, mp, name) {
+            this.side = side;
+            this.index = index;
+            this.mp = mp;
+            this.img = new Image();
+            this.name = name;
+            // need a canvas for the figure so that we can draw it on
+            if (this.side == SIDE_BLUE) this.img.src = "pd_board_res/figure_b.png";
+            else this.img.src = "pd_board_res/figure_r.png";
+            this.canvas = document.createElement("canvas");
+            this.canvas.figure = this; // back reference
+            this.canvas.width = FIGURE_SIZE[0];
+            this.canvas.height = FIGURE_SIZE[1];
+            this.canvas.style.left = x + 'px';
+            this.canvas.style.top = y + 'px';
+            this.canvas.style.position = 'absolute';
+            this.context = this.canvas.getContext("2d");
+            //this.context.drawImage(this.img, 0, 0);
+            this.context.font = '24px Arial';
+            this.context.textAlign = "center";
+            this.context.textBaseline = "middle";
+            //this.context.fillText(mp, this.canvas.width / 2, this.canvas.height / 2);
+            document.body.appendChild(this.canvas);
+            // double click to change mp text
+            /*
+            this.canvas.addEventListener('dblclick', function(event) {
+                this.figure.mp = prompt("Change MP:", this.figure.mp);
+            });*/
+            $(this.canvas).on('doubletap', function() {
+                var newMP = prompt("Change MP:", this.figure.mp);
+                if (newMP != null) {
+                    this.figure.mp = newMP;
+                }
+                var newName = prompt("Change Name:", this.figure.name);
+                if (newName != null) {
+                    this.figure.name = newName;
+                }
+            });
+            // jQuery function for draggability
+            $(this.canvas).draggable();
+            this.update = function() {
+                this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.context.drawImage(this.img, 0, 0); // draw the figure
+                this.context.fillText(this.mp, this.canvas.width / 2, this.canvas.height / 2); // draw MP
+                // draw name
+                canvas_pos = [getPx(this.canvas.style.left), getPx(this.canvas.style.top)];
+                board_canvas.getContext("2d").fillText(this.name, canvas_pos[0] + this.canvas.width / 2, canvas_pos[1] + this.canvas.height + 12);
+            }
+        }
+
+        // function for getting 52 in int from '52px'
+        function getPx(str) {
+            return parseInt(str.substring(0, str.length - 2));
+        }
+
+        function updateGameArea() {
+            myGameArea.update();
+            for (var i = 0; i < 6; i++) {
+                figures_blue[i].update();
+                figures_red[i].update();
+            }
+        }
+
+        var instructionCanvas = {
+            start: function() {
+                var canvas = inst_canvas;
+                canvas.width = CANVAS_INST_SIZE[0];
+                canvas.height = CANVAS_INST_SIZE[1];
+                canvas.style.border = '1px solid #d3d3d3';
+                canvas.style.backgroundColor = '#dadada';
+                canvas.style.left = '0px';
+                canvas.style.top = (CANVAS_SIZE[1] + CANVAS_OFFSET) + 'px';
+                canvas.style.position = 'absolute';
+                document.body.insertBefore(canvas, document.body.childNodes[0]);
+            },
+
+            update: function() {
+                // for name text: they are drawn on the board canvas directly
+                var canvas = inst_canvas;
+                var context = canvas.getContext("2d");
+                context.font = '200 22px Verdana';
+                context.fillText('Pokemon Duel Board Simulator', 16, 32);
+                context.font = '100 16.5px Verdana';
+                context.fillText('Drag and drop to move figures', 16, 72);
+                context.fillText('Double click/tap to change MP and name', 16, 92);
+            }
+        }
+    </script>
+
+</body>
+
+</html>
